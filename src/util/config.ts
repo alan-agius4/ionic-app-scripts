@@ -47,6 +47,12 @@ export function generateContext(context?: BuildContext): BuildContext {
   const sourceMapValue = getConfigValue(context, '--sourceMap', null, ENV_VAR_SOURCE_MAP, ENV_VAR_SOURCE_MAP.toLowerCase(), 'eval');
   setProcessEnvVar(ENV_VAR_SOURCE_MAP, sourceMapValue);
 
+  const noLint = getConfigValue(context, '--noLint', null, ENV_VAR_NO_LINT, ENV_VAR_NO_LINT.toLowerCase(), 'false');
+  setProcessEnvVar(ENV_VAR_NO_LINT, noLint);
+
+  const exitOnLintError = getConfigValue(context, '--exitLintError', null, ENV_VAR_EXIT_LINT_ERR, ENV_VAR_EXIT_LINT_ERR.toLowerCase(), 'false');
+  setProcessEnvVar(ENV_VAR_EXIT_LINT_ERR, exitOnLintError);
+
   if (!isValidBundler(context.bundler)) {
     context.bundler = bundlerStrategy(context);
   }
@@ -253,7 +259,19 @@ export function hasArg(fullName: string, shortName: string = null): boolean {
 }
 
 
-export function replacePathVars(context: BuildContext, filePath: string) {
+export function replacePathVars(context: BuildContext, filePath: string | string[] | { [key: string]: any }): any {
+  if (Array.isArray(filePath)) {
+    return filePath.map(f => replacePathVars(context, f));
+  }
+
+  if (typeof filePath === 'object') {
+    const clonedFilePaths = Object.assign({}, filePath);
+    for (let key in clonedFilePaths) {
+      clonedFilePaths[key] = replacePathVars(context, clonedFilePaths[key]);
+    }
+    return clonedFilePaths;
+  }
+
   return filePath.replace('{{SRC}}', context.srcDir)
     .replace('{{WWW}}', context.wwwDir)
     .replace('{{TMP}}', context.tmpDir)
@@ -390,6 +408,9 @@ const ENV_VAR_WWW_DIR = 'IONIC_WWW_DIR';
 const ENV_VAR_BUILD_DIR = 'IONIC_BUILD_DIR';
 const ENV_VAR_APP_SCRIPTS_DIR = 'IONIC_APP_SCRIPTS_DIR';
 const ENV_VAR_SOURCE_MAP = 'IONIC_SOURCE_MAP';
+
+const ENV_VAR_NO_LINT = 'IONIC_NO_LINT';
+const ENV_VAR_EXIT_LINT_ERR = 'IONIC_EXIT_LINT_ERR';
 
 export const BUNDLER_ROLLUP = 'rollup';
 export const BUNDLER_WEBPACK = 'webpack';
